@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 #from typing import List, Optional
-import json
+#import json
 import httpx
 from lxml import html
 
