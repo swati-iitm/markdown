@@ -19,7 +19,7 @@ app.add_middleware(
 
 @app.get("/")
 #async def get_wikipedia_outline(country: Optional[List[str]] = Query(default=[]):
-async def get_wiki(country: str = Query(...)):
+async def get_wiki(country: str = Query(default='India')):
     #country = 'India'
     return country
     url = f"https://en.wikipedia.org/wiki/{country}"
