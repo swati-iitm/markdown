@@ -2,6 +2,9 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import json
+import httpx
+from lxml import html
+
 
 app = FastAPI()
 
@@ -14,28 +17,40 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-# Load student data from the specified JSON file
-file_path = "q-vercel-python_2.json"
-
-try:
-    with open(file_path, "r") as file:
-        students = json.load(file)  # Load data into `students`
-except FileNotFoundError:
-    students = []  # Default to an empty list if the file is missing
-
-# Convert list of students to a dictionary for quick lookup
-students_dict = {entry["name"]: entry["marks"] for entry in students}
-
 @app.get("/")
-async def get_students(name: Optional[List[str]] = Query(default=[])):
-    """Fetch student marks based on optional name filtering while maintaining order."""
-    if name:
-        # Preserve the order in which names are passed
-        filtered_marks = [students_dict.get(n, None) for n in name]
-        return {"marks": filtered_marks}
-    
-    return {"marks": students}  # Return all data if no filter is applied
+def get_wikipedia_outline(country: Optional[List[str]] = Query(default=[]):
+    url = f"https://en.wikipedia.org/wiki/{country}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Referer": "https://www.google.com/"
+    }
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    with httpx.Client(headers=headers) as client:
+        response = client.get(url, timeout=60)
+        tree = html.fromstring(response.text)
+
+    # Extract headings
+    h1 = tree.xpath('string(//h1[contains(@class, "firstHeading")])').strip()
+    headings = tree.xpath('//h2 | //h3 | //h4 | //h5 | //h6')
+
+    # Convert to Markdown format
+    markdown_outline = ["## Contents\n"]
+    markdown_outline.append(f"# {h1}\n")  # Add main title
+
+    for heading in headings:
+        text = "".join(heading.xpath('.//text()')).replace("[edit]", "").strip()
+        tag = heading.tag  # h2, h3, etc.
+
+        if tag == "h2":
+            markdown_outline.append(f"## {text}\n")
+        elif tag == "h3":
+            markdown_outline.append(f"### {text}\n")
+        elif tag == "h4":
+            markdown_outline.append(f"#### {text}\n")
+        elif tag == "h5":
+            markdown_outline.append(f"##### {text}\n")
+        elif tag == "h6":
+            markdown_outline.append(f"###### {text}\n")
+
+    return "\n".join(markdown_outline)
